@@ -1,17 +1,26 @@
 """
-home_page.py
-============
+Filename: home_page.py
+======================
 
-Pagina "Home" con 3 pulsanti:
- - "KB Stats"
- - "RulesConclusions Stats"
- - "Studies Stats"
+Scopo:
+  - Pagina "Home" con 3 pulsanti per statistiche:
+     1) "KB Stats"
+     2) "RulesConclusions Stats"
+     3) "Studies Stats"
+  - Visualizza i risultati in un Text area.
 
-Obiettivo:
- - Eseguire statistiche su KB_Conclusions, su RulesConclusions (insieme a KB_Conclusions e Studies_DF),
-   e su Studies (males/females, stats by working day, etc.)
- - Evitare KeyError su GROUP_CODE => usiamo suffixes=('_rc','_kb') nel merge
- - Compattare output per Studies Stats
+Procedures/Functions:
+  - show_kb_stats(): Statistiche su KB_Conclusions, KB_Rules, KB_Conditions
+  - show_rulesconc_stats(): Statistiche su RulesConclusions (insieme a KB_Conclusions, Studies_DF)
+  - show_studies_stats(): Statistiche su Studies (males/females, stats by working day, etc.)
+
+Modifiche recenti:
+  - 2025-01-14: Aggiunta la logica “Compattare output” per Studies Stats,
+    e rifiniti i commenti in stile Pascal.
+
+Note:
+  - Evitare KeyError su GROUP_CODE => usiamo merge con suffixes.
+  - Output in inglese con separatori di migliaia per coerenza.
 """
 
 import tkinter as tk
@@ -22,7 +31,11 @@ import numpy as np
 
 class HomePage(ttk.Frame):
     """
-    Pagina "Home" con i 3 pulsanti e la text area
+    Pagina "Home" con i 3 pulsanti e la text area.
+    Permette di richiamare statistiche su:
+     - KB
+     - RulesConclusions
+     - Studies
     """
     def __init__(self, parent):
         super().__init__(parent)
@@ -68,8 +81,7 @@ class HomePage(ttk.Frame):
     # ----------------------------------------------------------------
     def show_kb_stats(self):
         """
-        Statistiche su KB_Conclusions, KB_Rules, KB_Conditions
-        in inglese, con separatori di migliaia.
+        Statistiche su KB_Conclusions, KB_Rules, KB_Conditions (in inglese).
         """
         self.text.delete("1.0", tk.END)
         df = data_structures.KB_Conclusions_DF
@@ -149,7 +161,8 @@ class HomePage(ttk.Frame):
     # ----------------------------------------------------------------
     def show_rulesconc_stats(self):
         """
-        Sistemi con suffixes=('_rc','_kb') e filtri su GROUP_CODE_kb, etc.
+        Statistiche su RulesConclusions insieme a KB_Conclusions e Studies_DF.
+        Usa suffixes=('_rc','_kb') e filtra GROUP_CODE_kb.
         """
         self.text.delete("1.0", tk.END)
         df_rc = data_structures.RulesConclusions_DF
@@ -173,11 +186,9 @@ class HomePage(ttk.Frame):
 
         lines.append("Average number of conclusions per study:")
 
-        # group by RICO_ID => size
         group = df_rc.groupby('RICO_ID').size()
         avg_all = group.mean() if len(group)>0 else 0
 
-        # Merge con suffixes
         merged = df_rc.merge(
             df_kb, 
             left_on='CONCLUSION_CODE', 
@@ -198,31 +209,30 @@ class HomePage(ttk.Frame):
         grp_nerve = df_nerve.groupby('RICO_ID').size()
         avg_nerve = grp_nerve.mean() if len(grp_nerve)>0 else 0
 
-        # "In report" => SHOW_IN_REPORTS_BL_kb
+        # In report
         col_inrep = 'SHOW_IN_REPORTS_BL_kb' if 'SHOW_IN_REPORTS_BL_kb' in merged.columns else 'SHOW_IN_REPORTS_BL'
         df_in_report = merged[merged[col_inrep] == True]
         grp_in_report = df_in_report.groupby('RICO_ID').size()
         avg_in_report = grp_in_report.mean() if len(grp_in_report)>0 else 0
 
-        # reserved => 'RESERVED_BL_kb'
+        # reserved
         col_res = 'RESERVED_BL_kb' if 'RESERVED_BL_kb' in merged.columns else 'RESERVED_BL'
         df_reserved = merged[merged[col_res] == True]
         grp_reserved = df_reserved.groupby('RICO_ID').size()
         avg_reserved = grp_reserved.mean() if len(grp_reserved)>0 else 0
 
-        # general => 'GENERALIZATION_BL_kb'
+        # generalization
         col_gen = 'GENERALIZATION_BL_kb' if 'GENERALIZATION_BL_kb' in merged.columns else 'GENERALIZATION_BL'
         df_general = merged[merged[col_gen] == True]
         grp_general = df_general.groupby('RICO_ID').size()
         avg_general = grp_general.mean() if len(grp_general)>0 else 0
 
-        # warning => 'WARNING_BL_kb'
+        # warning
         col_warn = 'WARNING_BL_kb' if 'WARNING_BL_kb' in merged.columns else 'WARNING_BL'
         df_warning = merged[merged[col_warn] == True]
         grp_warning = df_warning.groupby('RICO_ID').size()
         avg_warning = grp_warning.mean() if len(grp_warning)>0 else 0
 
-        # round to int
         lines.append(f"Total: {int(round(avg_all))}")
         lines.append(f"Final: {int(round(avg_final))}")
         lines.append(f"Single Muscle: {int(round(avg_musc))}")
@@ -240,15 +250,11 @@ class HomePage(ttk.Frame):
     # ----------------------------------------------------------------
     def show_studies_stats(self):
         """
-        Output compattato:
-          Total studies: 40,085 (Males: 18,243 Females: 21,842)
-          Average studies by working day: 6 (Max: 14)
-          Min age 0, Max: 92, Average: 56
-
-          Year 1991:
-            Studies: 274 (M=134, F=140)
-            Min in a day: 1  Max: 11  Average: 5
-          ...
+        Stampa statistiche su Studies:
+         - Totale, M/F
+         - Average by working day (e max)
+         - Age min, max, average
+         - Per ogni year, #studies, M/F, min in a day, max in a day, average.
         """
         self.text.delete("1.0", tk.END)
         df_st = data_structures.Studies_DF
@@ -270,7 +276,6 @@ class HomePage(ttk.Frame):
         max_by_day = group_day.max() if len(group_day)>0 else 0
         lines.append(f"Average studies by working day: {int(round(avg_by_day))} (Max: {int(max_by_day)})")
 
-        # età
         df_st2['AGE'] = (df_st2['STUDY_DATE'] - df_st2['BIRTH_DATE']).dt.days / 365.25
         day_age_mean = df_st2.groupby('DAY')['AGE'].mean()
         if len(day_age_mean) == 0:

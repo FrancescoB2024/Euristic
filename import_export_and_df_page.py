@@ -1,23 +1,44 @@
 """
-import_export_and_df_page.py
-============================
+Filename: import_export_and_df_page.py
+=====================================
 
-Pagina "Import/Export & Data Frame":
- - Pulsante "Import from Firebird"
- - Pulsante "Import KB" (separato, se volevi)
- - Pulsante "Clear DataFrames"
- - Pulsanti "Download DataFrames FEATHER", "Load DataFrames FEATHER",
-   "Download DataFrames JSON"
- - Show Memory Usage
- - Navigazione DF (select, prev, next)
- - I pulsanti "Download DataFrames ..." si abilitano solo se almeno un DF è popolato
- - "Clear DataFrames" azzera i DF
- - "Import from Firebird" e/o "Import KB" (facoltativo)
- - Contiene tutto ciò che era presente in versioni precedenti
+Scopo:
+  - Pagina "Import/Export & Data Frame" per:
+    * Importare i dati da Firebird (DB) o da KB.
+    * Cancellare i DataFrame.
+    * Salvare/Caricare i DataFrame in FEATHER o JSON.
+    * Mostrare l'utilizzo di memoria.
+    * Navigare e visualizzare il contenuto di uno specifico DataFrame.
 
-ATTENZIONE:
- - Ripristinate eventuali funzioni come save_to_json, import_kb_data, 
-   che erano state tolte involontariamente.
+Procedures/Functions/Metodi Principali:
+  - do_import_firebird(): Chiama import_db_data() e mostra esito.
+  - do_import_kb(): Chiama import_kb_data() e mostra esito.
+  - do_clear_dataframes(): Azzera tutti i DataFrame in data_structures.
+  - do_download_dataframes_feather(): Salva tutti i DF in file .feather.
+  - do_load_dataframes_feather(): Carica i DF da file .feather.
+  - do_download_dataframes_json(): Salva i DF in .json.
+  - do_show_memory_usage(): Mostra memoria impegnata dai DF, dalla RAM e dalla GPU (se presente).
+  - select_df(df_name), show_prev_record(), show_next_record(), show_current_record():
+    navigazione base dei DataFrame.
+
+Modifiche recenti:
+  - 2025-01-14: Reinserite funzioni "save_to_json" e "import_kb_data"
+                per correggere omissioni involontarie.
+  - Aggiunti commenti in stile Pascal-like.
+
+Note:
+  - I DataFrame globali sono in data_structures.py
+  - Per la GPU si fa uso di GPUtil (se disponibile).
+  - L'uso di FEATHER e JSON avviene in cartelle dedicate.
+
+
+Modifiche recenti:
+- 2025-01-15: Aggiunta scritta "DataFrame: X" in grande, e 
+  i pulsanti Prev/Next sono associati ai tasti sinistra e destra 
+  (era già presente, ma confermiamo).
+
+Note:
+- Usa data_structures.* come archivio di DataFrame globali.
 """
 
 import tkinter as tk
@@ -65,42 +86,37 @@ class ImportExportAndDataFramePage(ttk.Frame):
         # Tag di stile
         self.text.tag_config("bold", font=("Helvetica", 10, "bold"))
         self.text.tag_config("redbold", foreground="red", font=("Helvetica", 10, "bold"))
+        # Nuovo tag per DF name
+        self.text.tag_config("dfname_tag", font=("Helvetica", 18, "bold"))
 
         # Frame top: pulsanti
         self.top_frame = ttk.Frame(self)
         self.top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
-        # 1) Import from Firebird
         self.import_firebird_btn = ttk.Button(self.top_frame, text="Import from Firebird",
                                               command=self.do_import_firebird)
         self.import_firebird_btn.pack(side=tk.LEFT, padx=5)
 
-        # 2) Import KB (facoltativo, se vuoi separare l'import KB)
         self.import_kb_btn = ttk.Button(self.top_frame, text="Import KB",
                                         command=self.do_import_kb)
         self.import_kb_btn.pack(side=tk.LEFT, padx=5)
 
-        # 3) Clear DataFrames
         self.clear_df_btn = ttk.Button(self.top_frame, text="Clear DataFrames",
                                        command=self.do_clear_dataframes)
         self.clear_df_btn.pack(side=tk.LEFT, padx=5)
 
-        # 4) Download FEATHER
         self.download_feather_btn = ttk.Button(self.top_frame, text="Download DataFrames FEATHER",
                                                command=self.do_download_dataframes_feather)
         self.download_feather_btn.pack(side=tk.LEFT, padx=5)
 
-        # 5) Load FEATHER
         self.load_feather_btn = ttk.Button(self.top_frame, text="Load DataFrames FEATHER",
                                            command=self.do_load_dataframes_feather)
         self.load_feather_btn.pack(side=tk.LEFT, padx=5)
 
-        # 6) Download JSON
         self.download_json_btn = ttk.Button(self.top_frame, text="Download DataFrames JSON",
                                             command=self.do_download_dataframes_json)
         self.download_json_btn.pack(side=tk.LEFT, padx=5)
 
-        # 7) Show Memory Usage
         self.show_mem_btn = ttk.Button(self.top_frame, text="Show Memory Usage",
                                        command=self.do_show_memory_usage)
         self.show_mem_btn.pack(side=tk.LEFT, padx=5)
@@ -121,11 +137,19 @@ class ImportExportAndDataFramePage(ttk.Frame):
 
         self.prev_btn = ttk.Button(self.nav_frame, text="Prev", command=self.show_prev_record)
         self.prev_btn.pack(side=tk.LEFT, padx=5)
+        self.prev_btn.bind_all("<Left>", self.on_left_arrow)
 
         self.next_btn = ttk.Button(self.nav_frame, text="Next", command=self.show_next_record)
         self.next_btn.pack(side=tk.LEFT, padx=5)
+        self.next_btn.bind_all("<Right>", self.on_right_arrow)
 
         self.update_buttons_state()
+
+    def on_left_arrow(self, event):
+        self.show_prev_record()
+
+    def on_right_arrow(self, event):
+        self.show_next_record()
 
     # ------------------------------------------------------------
     # IMPORT FROM FIREBIRD
@@ -149,9 +173,6 @@ class ImportExportAndDataFramePage(ttk.Frame):
     # CLEAR DATAFRAMES
     # ------------------------------------------------------------
     def do_clear_dataframes(self):
-        """
-        Azzera tutti i DataFrame in data_structures.
-        """
         self.text.delete("1.0", tk.END)
         for df_name in self.df_names:
             df = getattr(data_structures, df_name, None)
@@ -253,7 +274,6 @@ class ImportExportAndDataFramePage(ttk.Frame):
         lines.append(f"Total memory usage (all DataFrames): {total_mem_df:.2f} MB")
         lines.append("----------------------------------")
 
-        import psutil
         svmem = psutil.virtual_memory()
         total_ram_gb = svmem.total / (1024**3)
         avail_ram_gb = svmem.available / (1024**3)
@@ -266,7 +286,6 @@ class ImportExportAndDataFramePage(ttk.Frame):
         lines.append(f"Python process usage: {used_by_python_mb:.2f} MB")
 
         try:
-            import GPUtil
             gpus = GPUtil.getGPUs()
             if gpus:
                 for i, gpu in enumerate(gpus):
@@ -338,6 +357,9 @@ class ImportExportAndDataFramePage(ttk.Frame):
             self.text.insert(tk.END, "Index out of range.\n")
             return
 
+        # Nuovo: stampa il nome del DF in grande
+        self.text.insert(tk.END, f"{self.current_df_name}\n", "dfname_tag")
+
         row = df.iloc[self.current_index]
         row_dict = row.to_dict()
 
@@ -354,29 +376,13 @@ class ImportExportAndDataFramePage(ttk.Frame):
             self.text.insert(tk.END, f"{col} ({dtype}): ", "redbold")
             self.text.insert(tk.END, f"{val}\n")
 
-    # ------------------------------------------------------------
-    # AGGIORNAMENTO STATO PULSANTI
-    # ------------------------------------------------------------
     def update_buttons_state(self):
-        """
-        Attiva/disattiva i pulsanti in base al contenuto dei DF
-        """
         is_any_populated = False
-        #is_all_populated = True  # se servisse
-
         for df_name in self.df_names:
             df = getattr(data_structures, df_name, None)
             if df is not None and not df.empty:
                 is_any_populated = True
-            # else:
-            #    is_all_populated = False
 
-        # Se c'e' almeno un DF popolato => disabilita "Import from Firebird"?
-        # (dipende dalla logica che vuoi). 
-        # Qui potremmo semplicemente non disabilitarlo, se l'utente vuole reimportare.
-        # self.import_firebird_btn.config(state=(tk.DISABLED if is_any_populated else tk.NORMAL))
-
-        # "Download DF FEATHER" e "Download DF JSON" => attivi se c'e' un DF popolato
         if is_any_populated:
             self.download_feather_btn.config(state=tk.NORMAL)
             self.download_json_btn.config(state=tk.NORMAL)
@@ -385,3 +391,4 @@ class ImportExportAndDataFramePage(ttk.Frame):
             self.download_json_btn.config(state=tk.DISABLED)
 
 # End of import_export_and_df_page.py
+

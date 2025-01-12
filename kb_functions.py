@@ -1,12 +1,28 @@
 """
-kb_functions.py
-===============
+Filename: kb_functions.py
+=========================
 
-Funzioni di import KB (Conclusions, Rules, Conditions, Muscles, Nerves).
+Scopo:
+  - Funzioni di importazione per la Knowledge Base (Conclusions, Rules,
+    Conditions, Muscles, Nerves) dal DB Firebird.
 
-MODIFICA:
- - Aggiungiamo il campo GENERALIZATION_BL (boolean) 
-   alla query su CONCLUSIONS_TREE e lo salviamo in KB_Conclusions_DF.
+Procedures/Functions:
+  - fetch_conclusions_data(): Importa 'KB_Conclusions_DF' dal DB.
+  - fetch_rules_data(): Importa 'KB_Rules_DF' dal DB.
+  - fetch_conditions_data(): Importa 'KB_Conditions_DF' dal DB.
+  - fetch_muscles_data(): Importa 'KB_Muscles_DF' dal DB.
+  - fetch_nerves_data(): Importa 'KB_Nerves_DF' dal DB.
+  - import_kb_data(): Esegue tutte le fetch in sequenza.
+  - save_to_csv(df, file_name): Salva un DataFrame su CSV.
+
+Modifiche recenti:
+  - Aggiunto il campo GENERALIZATION_BL (boolean) nella query su CONCLUSIONS_TREE
+    per popolare KB_Conclusions_DF.
+  - 2025-01-14: Riorganizzati i commenti e lo stile Pascal-like.
+
+Note:
+  - L'accesso al DB Firebird avviene tramite fdb.connect.
+  - Le variabili globali (DataFrame) sono in data_structures.py.
 """
 
 import fdb
@@ -19,11 +35,15 @@ user = "EURISTIC"
 password = "ritmo"
 
 def fetch_conclusions_data():
+    """
+    Importa i record in data_structures.KB_Conclusions_DF,
+    inclusi i campi boolean come SHOW_IN_REPORTS_BL e GENERALIZATION_BL.
+    """
     start_time = time.time()
     try:
         with fdb.connect(dsn=database_path, user=user, password=password) as conn:
             cursor = conn.cursor()
-            # Nuova query con GENERALIZATION_BL
+            # Eseguiamo la nuova query con GENERALIZATION_BL
             cursor.execute("""
                 SELECT
                   CONCLUSIONS_TREE.ID,
@@ -62,7 +82,7 @@ def fetch_conclusions_data():
                     'FINAL_BL': (True if row[8] == 'T' else False),
                     'SHOW_IN_REPORTS_BL': (True if row[9] == 'T' else False),
                     'RESERVED_BL': (True if row[10] == 'T' else False),
-                    'GENERALIZATION_BL': (True if row[11] == 'T' else False),  # NUOVO
+                    'GENERALIZATION_BL': (True if row[11] == 'T' else False),
                     'DEGREE_CODE': int(row[12]) if row[12] else 0,
                     'SET_PARENT_TRUE_BL': (True if row[13] == 'T' else False),
                     'WARNING_BL': (True if row[14] == 'T' else False),
@@ -75,6 +95,9 @@ def fetch_conclusions_data():
         return f"Error fetch_conclusions_data: {E}"
 
 def fetch_rules_data():
+    """
+    Importa i record in data_structures.KB_Rules_DF dal DB.
+    """
     start_time = time.time()
     try:
         with fdb.connect(dsn=database_path, user=user, password=password) as conn:
@@ -109,6 +132,9 @@ def fetch_rules_data():
         return f"Error in fetch_rules_data: {E}"
 
 def fetch_conditions_data():
+    """
+    Importa i record in data_structures.KB_Conditions_DF dal DB.
+    """
     start_time = time.time()
     try:
         with fdb.connect(dsn=database_path, user=user, password=password) as conn:
@@ -142,6 +168,10 @@ def fetch_conditions_data():
         return f"Error fetch_conditions_data: {E}"
 
 def fetch_muscles_data():
+    """
+    Importa i record in data_structures.KB_Muscles_DF dal DB
+    (MENU_NAME='Muscles', LAT='ENG').
+    """
     start_time = time.time()
     try:
         with fdb.connect(dsn=database_path, user=user, password=password) as conn:
@@ -167,6 +197,10 @@ def fetch_muscles_data():
         return f"Error fetch_muscles_data: {E}"
 
 def fetch_nerves_data():
+    """
+    Importa i record in data_structures.KB_Nerves_DF dal DB
+    (MENU_NAME='Nerves', LAT='ENG').
+    """
     start_time = time.time()
     try:
         with fdb.connect(dsn=database_path, user=user, password=password) as conn:
@@ -192,6 +226,10 @@ def fetch_nerves_data():
         return f"Error fetch_nerves_data: {E}"
 
 def import_kb_data():
+    """
+    Esegue tutte le fetch: Conclusions, Rules, Conditions, Muscles, Nerves.
+    Ritorna un messaggio riassuntivo.
+    """
     start_time = time.time()
     msg1 = fetch_conclusions_data()
     msg2 = fetch_rules_data()
@@ -205,6 +243,9 @@ def import_kb_data():
     )
 
 def save_to_csv(df, file_name):
+    """
+    Salva un DataFrame su CSV (utf-8) e ritorna un messaggio di esito.
+    """
     try:
         df.to_csv(file_name, index=False, encoding='utf-8')
         return f"CSV saved: {file_name}"

@@ -1,20 +1,41 @@
 """
-data_structures.py
-==================
+Filename: data_structures.py
+============================
 
-In questo file dichiariamo i DataFrame globali condivisi, 
-usati dal sistema (Studies, Diagnoses, KB, etc.).
+Scopo:
+  - Dichiarare i DataFrame globali condivisi, usati dal sistema.
+    (Studies, Diagnoses, KB, etc.)
 
-Gia' modificato in precedenza per:
- - Aggiungere 'SEX_CODE' in STUDIES
- - Cambiare float->Int32 in RULES_CONCLUSIONS_COLUMNS
- - Aggiungere GENERALIZATION_BL in KB_Conclusions
+Strutture Dati Principali:
+  - Studies_DF: Info anagrafiche e parametri di uno "studio" HIS.
+  - RulesConclusions_DF: Conclusioni generiche provenienti dal motore regole HIS.
+  - FinalDiagnoses_DF: Diagnosi finali (manuali).
+  - ClinicalDiagnoses_DF: Diagnosi cliniche (manuali).
+  - KB_Conclusions_DF: Conclusioni base di conoscenza (gerarchia).
+  - KB_Rules_DF: Regole (riferimento a Conclusioni).
+  - KB_Conditions_DF: Condizioni associate a regole.
+  - KB_Muscles_DF, KB_Nerves_DF: Tabelle di riferimento anatomico.
+
+Procedures/Functions:
+  - (Nessuna funzione in questo file; solo definizioni di DataFrame.)
+
+Modifiche recenti:
+  - Aggiunta colonna 'SEX_CODE' in STUDIES (Int32).
+  - Cambiato float->Int32 in RULES_CONCLUSIONS_COLUMNS.
+  - Aggiunto GENERALIZATION_BL in KB_Conclusions.
+  - 2025-01-14: Riconfigurato i commenti per chiarezza in stile Pascal-like.
+
+Note:
+  - I DataFrame qui definiti sono vuoti all'avvio e vengono
+    poi popolati in altre parti del programma (import, etc.).
 """
 
 import pandas as pd
 
 # -----------------------------------------------------------
-# STUDIES (HIS)
+# STUDIES (HIS) 
+#     Contiene informazioni anagrafiche e parametri di uno
+#     "studio" in ambito ospedaliero (HIS).
 # -----------------------------------------------------------
 STUDIES_COLUMNS = {
     'RICO_ID': pd.Series(dtype='Int64'),
@@ -33,6 +54,8 @@ Studies_DF = pd.DataFrame(STUDIES_COLUMNS)
 
 # -----------------------------------------------------------
 # RULES CONCLUSIONS (HIS)
+#     Collega RICO_ID con le conclusioni provenienti dal
+#     sistema di regole e i rispettivi codici (SITE, SIDE, etc.).
 # -----------------------------------------------------------
 RULES_CONCLUSIONS_COLUMNS = {
     'ID': pd.Series(dtype='Int64'),
@@ -46,6 +69,7 @@ RulesConclusions_DF = pd.DataFrame(RULES_CONCLUSIONS_COLUMNS)
 
 # -----------------------------------------------------------
 # DIAGNOSI (Final e Clinical)
+#     Gestione di Diagnosi finali e Cliniche in DB.
 # -----------------------------------------------------------
 FINAL_DIAGNOSES_COLUMNS = {
     'ID': pd.Series(dtype='Int64'),
@@ -67,6 +91,8 @@ ClinicalDiagnoses_DF = pd.DataFrame(CLINICAL_DIAGNOSES_COLUMNS)
 
 # -----------------------------------------------------------
 # KB (Conclusions, Rules, Conditions, Muscles, Nerves)
+#     Parte di Knowledge Base. Struttura gerarchica di conclusioni,
+#     regole, condizioni e riferimenti anatomici.
 # -----------------------------------------------------------
 KB_Conclusions_COLUMNS = {
     'ID': pd.Series(dtype='int'),
@@ -80,7 +106,7 @@ KB_Conclusions_COLUMNS = {
     'FINAL_BL': pd.Series(dtype='bool'),
     'SHOW_IN_REPORTS_BL': pd.Series(dtype='bool'),
     'RESERVED_BL': pd.Series(dtype='bool'),
-    'GENERALIZATION_BL': pd.Series(dtype='bool'), 
+    'GENERALIZATION_BL': pd.Series(dtype='bool'),
     'DEGREE_CODE': pd.Series(dtype='int'),
     'SET_PARENT_TRUE_BL': pd.Series(dtype='bool'),
     'WARNING_BL': pd.Series(dtype='bool'),

@@ -1,10 +1,27 @@
 """
-ai_tools_page.py
-================
+Filename: ai_tools_page.py
+==========================
 
-Contiene la classe AIToolsPage con 2 tab:
- - FinalDiagClusterPage
- - KnowledgeGraphPage
+Scopo:
+  - Contiene la classe AIToolsPage che racchiude più sotto-pagine (Notebook interno).
+    * FinalDiagClusterPage: analisi di pattern di regole e ML clustering
+      in base alle Final Diagnoses.
+    * KnowledgeGraphPage: pagina dedicata al Knowledge Graph.
+      (importato dal file knowledge_graph_page.py)
+
+Procedures/Functions/Classi Principali:
+  - AIToolsPage(ttk.Frame): Notebook con 2 tab (FinalDiagClusterPage, KnowledgeGraphPage).
+  - FinalDiagClusterPage(ttk.Frame): UI con listbox di final diagnoses,
+    pulsanti per "Load Diagnoses", "Find Patterns", "ML Clustering",
+    e due aree di testo (output e high-level interpretation).
+
+Modifiche Recenti:
+  - 2025-01-14: Creazione stile Pascal-like, aggiunti docstring.
+  - Uso di sklearn KMeans come esempio di clustering (non implementato in dettaglio).
+
+Note:
+  - L’istanza KnowledgeGraphPage è importata dal file knowledge_graph_page.py.
+  - DataFrame finali sono in data_structures.FinalDiagnoses_DF.
 """
 
 import tkinter as tk
@@ -14,6 +31,12 @@ from sklearn.cluster import KMeans
 from knowledge_graph_page import KnowledgeGraphPage
 
 class AIToolsPage(ttk.Frame):
+    """
+    AIToolsPage:
+     - Un Notebook interno con due pagine:
+       1) FinalDiagClusterPage
+       2) KnowledgeGraphPage
+    """
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -26,12 +49,24 @@ class AIToolsPage(ttk.Frame):
         self.knowledge_graph_page = KnowledgeGraphPage(self.notebook)
         self.notebook.add(self.knowledge_graph_page, text="Knowledge Graph")
 
+
 class FinalDiagClusterPage(ttk.Frame):
+    """
+    FinalDiagClusterPage:
+      - UI con listbox di final diagnoses.
+      - Pulsanti "Load Diagnoses", "Find Patterns", "ML Clustering".
+      - text_output e explanation_text per mostrare risultati e interpretazioni.
+    """
     def __init__(self, parent):
         super().__init__(parent)
         self.build_ui()
 
     def build_ui(self):
+        """
+        Crea la struttura di layout:
+         - un frame a sinistra con listbox e pulsanti
+         - un frame a destra con due aree di testo (output + interpretazione).
+        """
         self.left_frame = ttk.Frame(self)
         self.left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
 
@@ -58,6 +93,7 @@ class FinalDiagClusterPage(ttk.Frame):
         self.ml_clustering_btn = ttk.Button(self.btn_frame, text="ML Clustering", command=self.run_ml_clustering)
         self.ml_clustering_btn.pack(side=tk.LEFT, padx=5)
 
+        # Right frame con due riquadri
         self.right_frame = ttk.Frame(self)
         self.right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
@@ -87,6 +123,10 @@ class FinalDiagClusterPage(ttk.Frame):
         self.scroll_explain.config(command=self.explanation_text.yview)
 
     def populate_final_diagnosis_list(self):
+        """
+        Carica la lista di Final Diagnoses dal DataFrame (groupby e sort),
+        mostrandone anche il conteggio.
+        """
         self.diag_listbox.delete(0, tk.END)
         df_fd = data_structures.FinalDiagnoses_DF
         if df_fd.empty:
@@ -103,13 +143,21 @@ class FinalDiagClusterPage(ttk.Frame):
             self.diag_listbox.insert(tk.END, display_str)
 
     def find_patterns_freq(self):
+        """
+        Analisi di frequenza (frequent itemset) per la diagnosi selezionata.
+        """
         self.text_output.delete("1.0", tk.END)
         self.explanation_text.delete("1.0", tk.END)
-        # Implementa la logica come preferisci
+        # Da implementare: frequenze di regole conclusioni?
+        self.text_output.insert(tk.END, "Frequency-based patterns not yet implemented.\n")
 
     def run_ml_clustering(self):
+        """
+        Esempio di ML Clustering su conclusioni di regole associate a una data final diag.
+        """
         self.text_output.delete("1.0", tk.END)
         self.explanation_text.delete("1.0", tk.END)
-        # Implementa la logica come preferisci
+        # Da implementare: esempio KMeans?
+        self.text_output.insert(tk.END, "ML Clustering not yet implemented.\n")
 
 # End of ai_tools_page.py

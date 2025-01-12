@@ -1,12 +1,28 @@
 """
-graph_functions.py
-==================
+Filename: graph_functions.py
+============================
 
-Costruisce un DiGraph (IS-A + CASE-OF) dal 
- - KB_Conclusions_DF (colonne ID, CODE, PARENT_ID, STR, etc.)
- - RulesConclusions_DF (colonne RICO_ID, CODE, ...)
+Scopo:
+  - Costruire un grafo NX (IS-A + CASE-OF) a partire da:
+    * KB_Conclusions_DF (definizione concetti)
+    * RulesConclusions_DF (associazioni RICO_ID -> CODE).
+  - Consentire salvataggio/caricamento su disco (pickle).
+  - Calcolo di usage_count = #distinct RICO_ID per ogni CODE.
 
-NOVITA': facciamo un vero groupby su RulesConclusions_DF per scoprire usage_count
+Procedures/Functions:
+  - build_graph(): Ritorna un DiGraph con nodi conc_ID e case_rico.
+  - save_graph(G, filename): Salva G con pickle.
+  - load_graph(filename): Ritorna un graph dal pickle.
+  - get_graph_stats(G): Ritorna stringa con statistiche (num nodi, archi, etc.).
+
+Modifiche Recenti:
+  - 2025-01-14: Aggiunta la sezione usage_count (study_set) per i concetti.
+    Arricchiti i commenti e docstring in stile Pascal.
+
+Note:
+  - Per completare la mappatura CODE->ID si usa il KB_Conclusions_DF 
+    (campo CODE e ID). Le relazioni "IS-A" e "CASE-OF" sono dirette in un DiGraph.
+  - L’utente può poi usare networkx per altre analisi.
 """
 
 import networkx as nx
@@ -16,8 +32,12 @@ import data_structures
 
 def build_graph():
     """
-    Ritorna nx.DiGraph con nodi "conc_{ID}" (type="concept") e "case_{rico}" (type="case").
-    usage_count è calcolato come # distinct RICO_ID in rules_conclusions per ogni CODE.
+    Crea e ritorna un nx.DiGraph con:
+      - Nodi "conc_{ID}" (type="concept") -> provenienti da KB_Conclusions_DF
+        con attributi: STR, CODE, usage_count, etc.
+      - Nodi "case_{rico}" (type="case") -> provenienti da RulesConclusions_DF
+      - Archi "IS-A" (tra conc_{pid} e conc_{cid}) e "CASE-OF" (tra case_{rico} e conc_{cid}).
+      - usage_count = len(study_set) per ogni conc_{cid}.
     """
     G = nx.DiGraph()
 
@@ -28,13 +48,10 @@ def build_graph():
     if kb_df.empty or rc_df.empty:
         return G
 
-    # 1) calcoliamo usage_count = n. distinct RICO_ID per each CODE in rc_df
-    # es: rc_count[691] = 14160
-    # rename se serve
+    # 1) calcoliamo usage_count = n distinct RICO_ID per each CODE
     rccopy = rc_df.copy()
     if 'CONCLUSION_CODE' in rccopy.columns and 'CODE' not in rccopy.columns:
         rccopy.rename(columns={'CONCLUSION_CODE': 'CODE'}, inplace=True)
-    # groupby
     grp = rccopy.groupby('CODE')['RICO_ID'].nunique().reset_index(name='distinct_rico')
     rc_count = pd.Series(grp.distinct_rico.values, index=grp['CODE']).to_dict()
 
@@ -55,7 +72,7 @@ def build_graph():
             SET_PARENT_TRUE_BL = bool(row.get('SET_PARENT_TRUE_BL', False)),
             RESERVED_BL = bool(row.get('RESERVED_BL', False)),
             PARENT_ID = row.get('PARENT_ID', 0),
-            study_set = set(),  # compileremo dopo
+            study_set = set(),
             usage_count = usage
         )
 
@@ -70,27 +87,18 @@ def build_graph():
                 G.add_edge(parent_node, child_node, relation="IS-A")
 
     # 4) Nodi case_{rico} e archi CASE-OF
-    #    e riempiamo study_set
-    # rename se serve
     if 'CONCLUSION_CODE' in rc_df.columns and 'CODE' not in rc_df.columns:
         rc_df = rc_df.rename(columns={'CONCLUSION_CODE': 'CODE'})
 
     for rico in rc_df['RICO_ID'].unique():
-        cnode = f"case_{rico}"
-        G.add_node(cnode, type="case")
+        case_node = f"case_{rico}"
+        G.add_node(case_node, type="case")
 
-    # Aggiungiamo edges
     for _, row in rc_df.iterrows():
         rico = row['RICO_ID']
         code_val = row.get('CODE', None)
-        # trova cid
-        # per trovarlo, facciamo un match su kb_df "CODE" => "ID"
-        # Ma più semplice: costruiamo un dict code->list di cids? 
-        # Oppure assumiamo che code-> ID univoc
-        # Se code_val è presente in rc_count => c'e'
         if code_val is None:
             continue
-        # Troviamo ID corrispondente
         sub_kb = kb_df[kb_df['CODE']==code_val]
         if sub_kb.empty:
             continue
@@ -99,11 +107,9 @@ def build_graph():
         if conc_node in G:
             case_node = f"case_{rico}"
             G.add_edge(case_node, conc_node, relation="CASE-OF")
-            # Aggiungiamo rico in study_set
             G.nodes[conc_node]['study_set'].add(rico)
 
-    # final check usage_count
-    # se vogliamo avere EXACT usage_count from study_set => preferiamo la dimensione study_set
+    # 5) Se vogliamo usage_count esatto => len(study_set)
     for n, d in G.nodes(data=True):
         if d.get('type')=='concept':
             d['usage_count'] = len(d['study_set'])
@@ -111,17 +117,30 @@ def build_graph():
     return G
 
 def save_graph(G, filename):
+    """
+    Salva il grafo G in un file pickle.
+    """
     with open(filename, "wb") as f:
         pickle.dump(G, f)
 
 def load_graph(filename):
+    """
+    Carica un grafo Nx da file pickle e lo ritorna.
+    """
     with open(filename, "rb") as f:
         G = pickle.load(f)
     return G
 
 def get_graph_stats(G):
+    """
+    Restituisce una stringa con informazioni di base sul grafo:
+     - #nodi totali, #archi totali
+     - #nodi 'concept', #nodi 'case'
+     - #archi IS-A, #archi CASE-OF
+    """
     if G is None:
         return "Graph is None.\n"
+
     lines=[]
     lines.append(f"Total nodes: {G.number_of_nodes()}")
     lines.append(f"Total edges: {G.number_of_edges()}")

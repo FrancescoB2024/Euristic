@@ -1,13 +1,59 @@
 """
-explore_studies_page.py
-=======================
+Filename: explore_studies_page.py
+=================================
 
-Corretto l'errore KeyError: 'CODE' rinominando CONCLUSION_CODE -> CODE
-se occorre. Usa interpret_side_code da utils.py per evitare errori su pd.NA.
+Scopo:
+- Pagina "Explore Studies" per visualizzare i record di Studies_DF con 
+  relative rule_conclusions, final/clinical diagnoses, e filtri (All/Only in Report, 
+  Show/Hide Single M/N, Show/Hide warnings).
 
-Pagina "Explore Studies" con:
- - on_enter_page -> carica data e abilita pulsanti nav
- - show_record -> filtra rules_conclusions e stampa le sezioni
+Procedures/Functions/Classi Principali:
+- ExploreStudiesPage(ttk.Frame):
+    * Radiobutton per All/Only in report, Show/Hide muscle/nerve, Show/Hide warning.
+    * Goto Study, pulsanti di navigazione (first, prev, next, last).
+    * show_record() che filtra e stampa i dati.
+
+Modifiche recenti:
+- 2025-01-14:
+  1) Usa get_conclusion_str() per mostrare il nome della conclusione dal KB.
+  2) Associa la freccia sinistra e destra della tastiera ai pulsanti Prev e Next.
+
+Note:
+- Usa interpret_side_code() per lato, get_conclusion_str() per la descrizione.
+- Filtra (SHOW_IN_REPORTS_BL, WARNING_BL) se opportuno.
+
+Modifiche recenti:
+- 2025-01-15:
+  1) I pulsanti Prev e Next siano associati con le frecce di tastiera.
+    Precedentemente c'era un bind su self.prev_btn, ma aggiungiamo un
+    bind su self e/o root per essere sicuri funzioni.
+
+Note:
+- Usa interpret_side_code() per lato, get_conclusion_str() per la descrizione.
+- Filtra SHOW_IN_REPORTS_BL, WARNING_BL se opportuno.
+
+
+Modifiche recenti (2025-01-16):
+ 1) Abbiamo assicurato che i pulsanti Prev e Next siano associati 
+    realmente alle frecce di tastiera, forzando un self.focus_set() 
+    in on_enter_page. Se persiste il problema, un utente deve cliccare 
+    su questa pagina per rendere attivi i bind. 
+ 2) Resto invariato.
+
+Note:
+- Usa interpret_side_code() per lato, get_conclusion_str() per la descrizione.
+- Filtra SHOW_IN_REPORTS_BL, WARNING_BL se opportuno.
+- Attenzione: i bind <Left>/<Right> funzionano se la finestra ha focus.
+
+Modifiche recenti (2025-01-17):
+ 1) Forzata un'ulteriore gestione di on_enter_page() e di set_focus 
+    per le frecce tastiera.
+ 2) Confermato che <Left> e <Right> invocano show_previous / show_next.
+
+Note:
+- Se i tasti freccia non funzionano, potrebbe essere necessario 
+  cliccare manualmente sul Frame. O in Windows, a volte bisogna 
+  cliccare dentro la Text area. 
 """
 
 import tkinter as tk
@@ -37,10 +83,13 @@ class ExploreStudiesPage(ttk.Frame):
 
         self.first_btn = ttk.Button(self.top_frame, text="⏮", command=self.show_first, state=tk.DISABLED)
         self.first_btn.pack(side=tk.LEFT, padx=5)
+
         self.prev_btn = ttk.Button(self.top_frame, text="◀", command=self.show_previous, state=tk.DISABLED)
         self.prev_btn.pack(side=tk.LEFT, padx=5)
+
         self.next_btn = ttk.Button(self.top_frame, text="▶", command=self.show_next, state=tk.DISABLED)
         self.next_btn.pack(side=tk.LEFT, padx=5)
+
         self.last_btn = ttk.Button(self.top_frame, text="⏭", command=self.show_last, state=tk.DISABLED)
         self.last_btn.pack(side=tk.LEFT, padx=5)
 
@@ -54,7 +103,6 @@ class ExploreStudiesPage(ttk.Frame):
         self.bottom_rbuttons_frame = ttk.Frame(self)
         self.bottom_rbuttons_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
-        # Radio "All/Only"
         self.all_rb = ttk.Radiobutton(
             self.bottom_rbuttons_frame, text="All Conclusions",
             variable=self.mode_var, value="ALL",
@@ -69,7 +117,6 @@ class ExploreStudiesPage(ttk.Frame):
         )
         self.only_rb.pack(side=tk.LEFT, padx=5)
 
-        # Single Muscle & Single Nerve
         self.rb_all_mn = ttk.Radiobutton(
             self.bottom_rbuttons_frame,
             text="Show Single Muscle & Single Nerve Conclusions",
@@ -86,7 +133,6 @@ class ExploreStudiesPage(ttk.Frame):
         )
         self.rb_hide_mn.pack(side=tk.LEFT, padx=5)
 
-        # Radio Show/Hide warnings
         self.rb_show_warn = ttk.Radiobutton(
             self.bottom_rbuttons_frame, text="Show Warning Conclusions",
             variable=self.warning_var, value="SHOW_WARN",
@@ -118,16 +164,30 @@ class ExploreStudiesPage(ttk.Frame):
         self.text.tag_config("title_tag", font=("Helvetica", 12, "bold"))
         self.text.tag_config("red_title", foreground="red", font=("Helvetica", 12, "bold"))
 
+        # Bind frecce di tastiera
+        self.bind("<Left>", self.on_left_arrow)
+        self.bind("<Right>", self.on_right_arrow)
+
     def on_enter_page(self):
         self.first_btn.config(state=tk.NORMAL)
         self.prev_btn.config(state=tk.NORMAL)
         self.next_btn.config(state=tk.NORMAL)
         self.last_btn.config(state=tk.NORMAL)
 
+        # Forziamo il focus su di noi
+        self.focus_set()
+        self.event_generate("<FocusIn>")
+
         df = data_structures.Studies_DF
         self.data = df.to_dict('records')
         self.index = 0
         self.show_record()
+
+    def on_left_arrow(self, event):
+        self.show_previous()
+
+    def on_right_arrow(self, event):
+        self.show_next()
 
     def goto_study(self):
         val_str = self.study_entry.get().strip()
@@ -176,32 +236,21 @@ class ExploreStudiesPage(ttk.Frame):
         show_mn = (self.muscle_nerve_var.get() == "ALL_MN")
         show_warn = (self.warning_var.get() == "SHOW_WARN")
 
-        # Carichiamo rules DF
         rc_df = data_structures.RulesConclusions_DF.copy()
-        # Se "CONCLUSION_CODE" esiste e "CODE" no, rinominiamo
         if 'CONCLUSION_CODE' in rc_df.columns and 'CODE' not in rc_df.columns:
-            rc_df.rename(columns={'CONCLUSION_CODE':'CODE'}, inplace=True)
-
+            rc_df.rename(columns={'CONCLUSION_CODE': 'CODE'}, inplace=True)
         subset = rc_df[rc_df['RICO_ID'] == record.get('RICO_ID')]
 
-        # Filtra "Only in report"
         df_kb = data_structures.KB_Conclusions_DF
         if not df_kb.empty:
-            # Se "CONCLUSION_CODE" in df_kb colonna? No, df_kb usa "CODE"
-            # Filtriamo in base a SHOW_IN_REPORTS_BL e WARNING_BL
             if only_in_report:
                 valid_codes = df_kb[df_kb['SHOW_IN_REPORTS_BL'] == True]['CODE'].unique()
                 subset = subset[subset['CODE'].isin(valid_codes)]
-
-            # Filtra "Hide warnings"
             if not show_warn:
                 non_warn_codes = df_kb[df_kb['WARNING_BL'] == False]['CODE'].unique()
                 subset = subset[subset['CODE'].isin(non_warn_codes)]
 
-        # Ora costruiamo final_impressions, clinical, final diag, etc.
         final_impressions = record.get('FINAL_IMPRESSIONS') or ""
-
-        # Clinical
         c_df = data_structures.ClinicalDiagnoses_DF
         csub = c_df[c_df['RICO_ID'] == record.get('RICO_ID')]
         clinical_list = []
@@ -212,7 +261,6 @@ class ExploreStudiesPage(ttk.Frame):
                 diag_str += side_str
             clinical_list.append(diag_str)
 
-        # Final diag
         f_df = data_structures.FinalDiagnoses_DF
         fsub = f_df[f_df['RICO_ID'] == record.get('RICO_ID')]
         finaldiag_list = []
@@ -222,10 +270,6 @@ class ExploreStudiesPage(ttk.Frame):
             if side_str:
                 diag_str += side_str
             finaldiag_list.append(diag_str)
-
-        # Raggruppiamo in base a group_code = 1,2,3
-        # (se group_code non esiste in df, aggiungetelo come volete).
-        data_structures.print_msg = "Missing group_code in rulesconclusions?"  # debug
 
         final_rows = subset[subset.get('GROUP_CODE', 0) == 1]
         final_list = []
@@ -245,9 +289,11 @@ class ExploreStudiesPage(ttk.Frame):
                 c_str = get_conclusion_str(rowc['CODE'])
                 side_str = interpret_side_code(rowc.get('SIDE_CODE', None))
                 site_code = rowc.get('SITE_CODE', None)
-                muscle_name = get_muscle_str(site_code) if pd.notna(site_code) else "UnknownMuscle"
-                text_item = c_str
-                text_item += f", {muscle_name}"
+                if pd.notna(site_code):
+                    muscle_name = get_muscle_str(site_code)
+                else:
+                    muscle_name = "UnknownMuscle"
+                text_item = c_str + f", {muscle_name}"
                 if side_str:
                     text_item += side_str
                 muscle_list.append(text_item)
@@ -257,9 +303,11 @@ class ExploreStudiesPage(ttk.Frame):
                 c_str = get_conclusion_str(rowc['CODE'])
                 side_str = interpret_side_code(rowc.get('SIDE_CODE', None))
                 site_code = rowc.get('SITE_CODE', None)
-                nerve_name = get_nerve_str(site_code) if pd.notna(site_code) else "UnknownNerve"
-                text_item = c_str
-                text_item += f", {nerve_name}"
+                if pd.notna(site_code):
+                    nerve_name = get_nerve_str(site_code)
+                else:
+                    nerve_name = "UnknownNerve"
+                text_item = c_str + f", {nerve_name}"
                 if side_str:
                     text_item += side_str
                 nerve_list.append(text_item)

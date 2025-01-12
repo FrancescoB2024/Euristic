@@ -1,18 +1,29 @@
 """
-main.py
-=======
+Filename: main.py
+=================
 
-File principale con la finestra "MainApplication" e il Notebook
-che include 5 pagine:
- 1) HomePage
- 2) ExploreStudiesPage
- 3) ExploreKBPage
- 4) ImportExportAndDataFramePage
- 5) AIToolsPage
+Scopo:
+  - Classe MainApplication (Tk) che gestisce:
+    1) HomePage
+    2) ExploreStudiesPage
+    3) ExploreKBPage
+    4) ImportExportAndDataFramePage
+    5) AIToolsPage
+  - All'avvio: dimensiona la finestra, carica i DataFrame da FEATHER
+    e poi seleziona automaticamente la scheda "AI Tools".
 
-Modifiche richieste:
- - All'avvio, eseguiamo automaticamente "Load DataFrames FEATHER".
- - Poi andiamo direttamente alla pagina "AI Tools".
+Procedures/Functions/Metodi Principali:
+  - __init__(): Crea le pagine del Notebook, definisce stile, e avvia.
+  - set_initial_geometry_and_load_feather(): imposta dimensioni e carica DF Feather.
+  - on_tab_changed(event): chiama on_enter_page() nelle pagine se serve.
+
+Modifiche recenti:
+  - 2025-01-14: Aggiunta la logica di "Load DataFrames FEATHER" in automatico,
+    poi passa alla tab "AI Tools".
+
+Note:
+  - Viene usato style "TNotebook.Tab" font 14 bold.
+  - Per aggiungere altre pagine, import i moduli e aggiungi nel Notebook.
 """
 
 import tkinter as tk
@@ -26,10 +37,11 @@ from ai_tools_page import AIToolsPage
 
 class MainApplication(tk.Tk):
     """
-    Classe MainApplication:
-     - Crea il Notebook con 5 pagine
-     - Gestisce on_tab_changed
-     - All'avvio, carica i DF da FEATHER e seleziona la scheda AI Tools
+    MainApplication:
+     - Crea un Notebook con 5 pagine:
+       (Home, ExploreStudies, ExploreKB, ImportExport, AI Tools).
+     - All'avvio, dimensiona la finestra, carica DF da FEATHER
+       e passa su "AI Tools" automaticamente.
     """
     def __init__(self):
         super().__init__()
@@ -42,35 +54,35 @@ class MainApplication(tk.Tk):
         self.notebook = ttk.Notebook(self, style="TNotebook")
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
-        # Pagina 1) Home
+        # Pagina 1: Home
         self.home_page = HomePage(self.notebook)
         self.notebook.add(self.home_page, text="Home")
 
-        # Pagina 2) Explore Studies
+        # Pagina 2: Explore Studies
         self.studies_page = ExploreStudiesPage(self.notebook)
         self.notebook.add(self.studies_page, text="Explore Studies")
 
-        # Pagina 3) Explore KB
+        # Pagina 3: Explore KB
         self.kb_page = ExploreKBPage(self.notebook)
         self.notebook.add(self.kb_page, text="Explore KB")
 
-        # Pagina 4) Import/Export & Data Frame
+        # Pagina 4: Import/Export & Data Frame
         self.import_page = ImportExportAndDataFramePage(self.notebook)
         self.notebook.add(self.import_page, text="Import/Export & Data Frame")
 
-        # Pagina 5) AI Tools
+        # Pagina 5: AI Tools
         self.ai_tools_page = AIToolsPage(self.notebook)
         self.notebook.add(self.ai_tools_page, text="AI Tools")
 
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
 
-        # Avvio dimensioni + caricamento DF FEATHER
+        # Dimensioni + caricamento DF Feather all'avvio
         self.after(0, self.set_initial_geometry_and_load_feather)
 
     def set_initial_geometry_and_load_feather(self):
         """
-        Larghezza=1300, altezza=screen_height - 100
-        e subito dopo eseguiamo "Load DataFrames FEATHER" e passiamo a AI Tools
+        Larghezza=1300, altezza=screen_height - 100.
+        Poi carichiamo DF da FEATHER e passiamo a "AI Tools".
         """
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
@@ -81,10 +93,9 @@ class MainApplication(tk.Tk):
         y_pos = (screen_h - height) // 2
         self.geometry(f"{width}x{height}+{x_pos}+{y_pos}")
 
-        # Ora eseguiamo in automatico "Load DataFrames FEATHER"
-        # e passiamo alla scheda AI Tools.
-        self.import_page.do_load_dataframes_feather()  # caricamento automatico
-        # Selezioniamo la tab AI Tools (5)
+        # Carichiamo i DF in automatico:
+        self.import_page.do_load_dataframes_feather()
+        # Selezioniamo la tab "AI Tools"
         self.notebook.select(self.ai_tools_page)
 
     def on_tab_changed(self, event):
@@ -93,10 +104,9 @@ class MainApplication(tk.Tk):
             self.studies_page.on_enter_page()
         elif current_tab == "Explore KB":
             self.kb_page.on_enter_page()
-        # "AI Tools" se volessi fare qualcosa, ma ora non serve
         else:
             pass
-
+        # Per "AI Tools" non è necessario fare nulla di speciale.
 
 if __name__ == "__main__":
     app = MainApplication()

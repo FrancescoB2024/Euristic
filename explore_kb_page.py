@@ -1,16 +1,29 @@
 """
-explore_kb_page.py
-==================
+Filename: explore_kb_page.py
+===========================
 
-Pagina "Explore KB":
- - radio 1/2/3/all levels
- - radio Show/Hide rules
- - entry "Go to Concept"
+Scopo:
+  - Pagina "Explore KB": visualizzare la gerarchia delle conclusioni
+    (KB_Conclusions_DF) a vari livelli di profondità
+    e con la possibilità di mostrare/nascondere le regole.
+  - Consentire di andare a uno specifico concetto digitando il CODE.
+  - Aggiungere i tag: INT, RES, GEN, W, Depth N.
 
-MODIFICA:
- - Nella composizione dei tag, aggiungere "W" se WARNING_BL = True
-   e "Depth N" dove N = DEPTH
-   Esempio: [INT,RES,GEN,W,Depth 4]
+Procedures/Functions/Metodi Principali:
+  - on_enter_page(): Imposta i radio button default e mostra la KB.
+  - show_kb(): Ricostruisce e stampa la gerarchia (livello 1/2/3/all).
+  - goto_concept(): Mostra un certo CODE e la sua catena di genitori.
+  - compose_tags_for_conclusion(row, df): Crea i tag "[...,Depth N]".
+  - get_rules_for_conclusion(code_int): Ritorna le regole.
+  - get_conditions_for_rule(rule_id): Ritorna le condition.
+
+Modifiche recenti:
+  - 2025-01-14: Aggiunti "W" se WARNING_BL True e "Depth N".
+  - Aggiunti commenti stile Pascal.
+
+Note:
+  - In "compose_tags_for_conclusion" si costruisce ad es. "[INT,RES,GEN,W,Depth 4]"
+  - Espansione ricorsiva con expand_children.
 """
 
 import tkinter as tk
@@ -19,13 +32,15 @@ import data_structures
 
 class ExploreKBPage(ttk.Frame):
     """
-    Pagina "Explore KB":
+    Pagina "Explore KB": Radiobutton per i vari livelli,
+    Radiobutton show/hide rules, e un Entry "Go to Concept".
     """
     def __init__(self, parent):
         super().__init__(parent)
         self.level_var = tk.StringVar(value="1")
         self.rules_var = tk.StringVar(value="HIDE")
 
+        # Frame testuale + scrollbar
         self.text_frame = ttk.Frame(self)
         self.text_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -36,6 +51,7 @@ class ExploreKBPage(ttk.Frame):
         self.text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.scrollbar.config(command=self.text.yview)
 
+        # Frame bottom con i radio e entry
         self.bottom = ttk.Frame(self)
         self.bottom.pack(side=tk.BOTTOM, fill=tk.X)
 
@@ -43,6 +59,7 @@ class ExploreKBPage(ttk.Frame):
         self.rb2 = ttk.Radiobutton(self.bottom, text="2 levels", variable=self.level_var, value="2", command=self.show_kb)
         self.rb3 = ttk.Radiobutton(self.bottom, text="3 levels", variable=self.level_var, value="3", command=self.show_kb)
         self.rb4 = ttk.Radiobutton(self.bottom, text="ALL levels", variable=self.level_var, value="all", command=self.show_kb)
+
         self.rb1.pack(side=tk.LEFT, padx=5)
         self.rb2.pack(side=tk.LEFT, padx=5)
         self.rb3.pack(side=tk.LEFT, padx=5)
@@ -59,6 +76,7 @@ class ExploreKBPage(ttk.Frame):
         self.goto_button = ttk.Button(self.bottom, text="Go to Concept", command=self.goto_concept)
         self.goto_button.pack(side=tk.LEFT, padx=5)
 
+        # Tag di stile
         self.text.tag_config("blue_conclusion", foreground="blue")
         self.text.tag_config("green_rule", foreground="green")
         self.text.tag_config("brown_condition", foreground="#8B4513")
@@ -69,6 +87,10 @@ class ExploreKBPage(ttk.Frame):
         self.show_kb()
 
     def show_kb(self):
+        """
+        Ricostruisce e stampa la gerarchia KB in base alle impostazioni
+        (level_var, rules_var).
+        """
         df = data_structures.KB_Conclusions_DF
         self.text.delete("1.0", tk.END)
         if df.empty:
@@ -101,9 +123,10 @@ class ExploreKBPage(ttk.Frame):
                 results.extend(self.expand_children(rowp['ID'], df, 1, "2", show_rules))
             elif max_level == "3":
                 results.extend(self.expand_children(rowp['ID'], df, 1, "3", show_rules))
-            else:
+            else:  # "all"
                 results.extend(self.expand_children(rowp['ID'], df, 1, "all", show_rules))
 
+        # Stampa i risultati
         for (lvl, txt, maybe_code, extra_tag, kind) in results:
             indent = "   " * lvl
             if kind == "conclusion":
@@ -118,7 +141,7 @@ class ExploreKBPage(ttk.Frame):
             elif kind == "rule":
                 self.text.insert(tk.END, indent)
                 self.text.insert(tk.END, txt + "\n", "green_rule")
-            else:
+            else:  # condition
                 self.text.insert(tk.END, indent)
                 self.text.insert(tk.END, txt + "\n", "brown_condition")
 
@@ -128,7 +151,7 @@ class ExploreKBPage(ttk.Frame):
         code_str = self.concept_entry.get().strip()
         self.text.delete("1.0", tk.END)
         if not code_str.isdigit() or len(code_str) > 5:
-            self.text.insert(tk.END, "Invalid code. Must be an integer up to 5 digits.\n")
+            self.text.insert(tk.END, "Invalid code. Must be integer up to 5 digits.\n")
             return
 
         code_int = int(code_str)
@@ -145,6 +168,7 @@ class ExploreKBPage(ttk.Frame):
         def find_by_id(idx):
             return df.loc[df['ID'] == idx]
 
+        # Risali la catena dei genitori
         while True:
             r = find_by_id(current_id)
             if r.empty:
@@ -155,11 +179,13 @@ class ExploreKBPage(ttk.Frame):
                 break
             current_id = parent_id
 
+        # Stampa
         for node in chain:
             c_code = node['CODE']
             name = node['STR'] or "NoName"
             tagp = self.compose_tags_for_conclusion(node, df)
             self.text.insert(tk.END, f"{name}({c_code}) {tagp}\n", "blue_conclusion")
+
             if show_rules:
                 rlist = self.get_rules_for_conclusion(c_code)
                 for (rid, rstr) in rlist:
@@ -171,14 +197,16 @@ class ExploreKBPage(ttk.Frame):
 
     def compose_tags_for_conclusion(self, row, df_all):
         """
-        Esempio: [INT,RES,GEN,W,Depth 4]
+        Ritorna stringa di tag, es: "[INT,RES,GEN,W,Depth 4]"
         """
         tags = []
+        # INT se SHOW_IN_REPORTS_BL == False
         if not row.get('SHOW_IN_REPORTS_BL'):
             tags.append("INT")
+        # RES se RESERVED_BL
         if row.get('RESERVED_BL'):
             tags.append("RES")
-        # GEN se c'è child con SET_PARENT_TRUE_BL
+        # GEN se c'è figlio con SET_PARENT_TRUE_BL
         crows = df_all[df_all['PARENT_ID'] == row['ID']]
         if not crows.empty and any(crows['SET_PARENT_TRUE_BL']):
             tags.append("GEN")
@@ -209,6 +237,10 @@ class ExploreKBPage(ttk.Frame):
         return csub
 
     def expand_children(self, parent_id, df, level, max_level, show_rules):
+        """
+        Espansione ricorsiva dei figli in base a max_level ("1","2","3","all").
+        Ritorna una lista di tuple (lvl, text, code, extratag, kind).
+        """
         lines = []
         child_rows = df[df['PARENT_ID'] == parent_id]
         for _, child in child_rows.iterrows():
