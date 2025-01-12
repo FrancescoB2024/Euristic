@@ -1,0 +1,24 @@
+# File o cartelle da ignorare
+
+# Escludere l'ambiente virtuale
+venv/
+
+# Escludere file generati
+*.pkl
+*.lib
+*.dll
+*.JSON
+
+
+__pycache__/
+*.pyc
+.vscode/
+*.log
+LAST 9 FILES
+DataFrame Download JSON
+DataFrame Download FEATHER
+OLD 4 FILES 3
+OLD 4 FILES 2
+OLD 4 FILES
+OLD
+Project Euristic files
